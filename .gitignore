@@ -46,3 +46,5 @@ pids
 
 # TypeScript build cache
 *.tsbuildinfo
+
+/src/generated/prisma
