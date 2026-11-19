@@ -1,4 +1,6 @@
-// Prisma schema: mô tả các bảng trong database.
+// Prisma schema KidLearn — bám theo Data Model v1.2.0 (Docs-BA/07-Data-Model).
+// Tên bảng và cột trong DB giữ đúng tên tiếng Việt không dấu của tài liệu (snake_case);
+// tên trong code là camelCase. Mọi dữ liệu gắn với một gia đình (BRL-007).
 // Docs: https://pris.ly/d/prisma-schema
 
 generator client {
@@ -12,10 +14,379 @@ datasource db {
   provider = "mysql"
 }
 
-model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// ---------- Enum ----------
+
+enum Mon {
+  MATHS
+  ENGLISH
+  SCIENCE
+}
+
+enum DangKeHoach {
+  TEXT
+  IMAGE
+  FILE
+}
+
+enum TrangThaiSoan {
+  CHUA_SOAN
+  DANG_SOAN
+  DA_SOAN
+  LOI
+}
+
+enum TrangThaiBai {
+  DRAFT
+  APPROVED
+  REMOVED
+}
+
+enum DangCau {
+  CHON_DAP_AN
+  KEO_THA
+  DEM
+  DIEN_SO
+}
+
+enum DoKho {
+  DE
+  VUA
+  KHO
+}
+
+enum TrangThaiCauHoi {
+  ACTIVE
+  REMOVED
+}
+
+enum LoaiLich {
+  MOI
+  ON
+}
+
+enum TrangThaiLuot {
+  DANG_LAM
+  HOAN_THANH
+}
+
+enum KetQuaTraLoi {
+  FIRST
+  SECOND
+  WRONG
+}
+
+enum ChuDeNhanVat {
+  XE
+  BONG_DA
+  KHAC
+}
+
+enum LoaiNhanVat {
+  AVATAR
+  STICKER
+}
+
+enum LyDoSticker {
+  THUOC_BAI
+  DOI_THUONG
+  MUC_TIEU_TUAN
+  DIEU_CHINH
+}
+
+enum PhuongThucDangNhap {
+  EMAIL
+  GOOGLE
+}
+
+// ---------- Gia đình & cấu hình ----------
+
+model GiaDinh {
+  id          String    @id @default(uuid()) @db.Char(36)
+  tenGiaDinh  String    @map("ten_gia_dinh")
+  pinBam      String    @map("pin_bam") // PIN 4 số băm bcrypt (BRL-010)
+  soLanSaiPin Int       @default(0) @map("so_lan_sai_pin")
+  khoaPinDen  DateTime? @map("khoa_pin_den")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  taiKhoan TaiKhoanPhuHuynh[]
+  hoSoBe   HoSoBe[]
+  cauHinh  CauHinhGiaDinh?
+  keHoach  KeHoach[]
+
+  @@map("gia_dinh")
+}
+
+// MVP 1 chưa có đăng nhập (Q-15); bảng để sẵn cho MVP 2.
+model TaiKhoanPhuHuynh {
+  id                 String             @id @default(uuid()) @db.Char(36)
+  giaDinhId          String             @map("gia_dinh_id") @db.Char(36)
+  email              String             @unique
+  phuongThucDangNhap PhuongThucDangNhap @map("phuong_thuc_dang_nhap")
+  matKhauBam         String?            @map("mat_khau_bam")
+  lanDangNhapCuoi    DateTime?          @map("lan_dang_nhap_cuoi")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  giaDinh      GiaDinh        @relation(fields: [giaDinhId], references: [id])
+  lanDoiThuong LanDoiThuong[]
+
+  @@map("tai_khoan_phu_huynh")
+}
+
+model CauHinhGiaDinh {
+  giaDinhId        String   @id @map("gia_dinh_id") @db.Char(36)
+  nguongThuocBai   Decimal  @default(8.0) @map("nguong_thuoc_bai") @db.Decimal(3, 1) // CFG-01
+  phutMoiNgay      Int      @default(35) @map("phut_moi_ngay") // CFG-02
+  soCauMoiNgay     Int      @default(20) @map("so_cau_moi_ngay") // CFG-03
+  chuKyOnNgay      Int      @default(7) @map("chu_ky_on_ngay") // CFG-04
+  stickerLenCap    Int      @default(5) @map("sticker_len_cap") // CFG-05
+  tyLeDoi          Int?     @map("ty_le_doi") // CFG-06, VNĐ/sticker
+  batLoa           Boolean  @default(true) @map("bat_loa") // CFG-07
+  mucTieuBuoiTuan  Int      @default(4) @map("muc_tieu_buoi_tuan") // CFG-08
+  tuDieuChinhDoKho Boolean  @default(true) @map("tu_dieu_chinh_do_kho") // CFG-09
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  giaDinh GiaDinh @relation(fields: [giaDinhId], references: [id])
+
+  @@map("cau_hinh_gia_dinh")
+}
+
+// ---------- Bé & nhân vật ----------
+
+model NhanVat {
+  id        String       @id @default(uuid()) @db.Char(36)
+  ten       String
+  chuDe     ChuDeNhanVat @map("chu_de")
+  loai      LoaiNhanVat
+  hinhUrl   String       @map("hinh_url")
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  hoSoBe          HoSoBe[]
+  giaoDichSticker GiaoDichSticker[]
+
+  @@map("nhan_vat")
+}
+
+model HoSoBe {
+  id          String   @id @default(uuid()) @db.Char(36)
+  giaDinhId   String   @map("gia_dinh_id") @db.Char(36)
+  tenGoi      String   @map("ten_goi") // tên gọi ở nhà, không lưu họ tên đầy đủ (BRL-009)
+  khoiLop     String   @map("khoi_lop")
+  nhanVatId   String   @map("nhan_vat_id") @db.Char(36)
+  capNhanVat  Int      @default(1) @map("cap_nhan_vat")
+  soThich     Json?    @map("so_thich") // tối đa 3 mã chủ đề (BRL-015)
+  soDuSticker Int      @default(0) @map("so_du_sticker")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  giaDinh         GiaDinh           @relation(fields: [giaDinhId], references: [id])
+  nhanVat         NhanVat           @relation(fields: [nhanVatId], references: [id])
+  lichHoc         LichHoc[]
+  phienHoc        PhienHoc[]
+  giaoDichSticker GiaoDichSticker[]
+  lanDoiThuong    LanDoiThuong[]
+  mucTieuTuan     MucTieuTuan[]
+
+  @@map("ho_so_be")
+}
+
+// ---------- Nội dung học ----------
+
+// Mỗi gia đình, mỗi môn, mỗi ngày một kế hoạch (PO chốt 2026-11-19).
+model KeHoach {
+  id            String        @id @default(uuid()) @db.Char(36)
+  giaDinhId     String        @map("gia_dinh_id") @db.Char(36)
+  mon           Mon           @default(MATHS)
+  dang          DangKeHoach
+  tepGocUrl     String?       @map("tep_goc_url")
+  noiDungChu    String?       @map("noi_dung_chu") @db.Text
+  daXacNhan     Boolean       @default(false) @map("da_xac_nhan")
+  ngayHoc       DateTime      @map("ngay_hoc") @db.Date
+  trangThaiSoan TrangThaiSoan @default(CHUA_SOAN) @map("trang_thai_soan")
+  loiGanNhat    String?       @map("loi_gan_nhat")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  giaDinh GiaDinh @relation(fields: [giaDinhId], references: [id])
+  bai     Bai[]
+
+  @@unique([giaDinhId, mon, ngayHoc])
+  @@map("ke_hoach")
+}
+
+model Bai {
+  id         String       @id @default(uuid()) @db.Char(36)
+  keHoachId  String       @map("ke_hoach_id") @db.Char(36)
+  chuDe      String       @map("chu_de")
+  ngayDuKien DateTime     @map("ngay_du_kien") @db.Date
+  trangThai  TrangThaiBai @default(DRAFT) @map("trang_thai")
+  duyetLuc   DateTime?    @map("duyet_luc")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  keHoach KeHoach   @relation(fields: [keHoachId], references: [id])
+  cauHoi  CauHoi[]
+  lichHoc LichHoc[]
+
+  @@map("bai")
+}
+
+model CauHoi {
+  id          String          @id @default(uuid()) @db.Char(36)
+  baiId       String          @map("bai_id") @db.Char(36)
+  thuTu       Int             @map("thu_tu")
+  dangCau     DangCau         @map("dang_cau")
+  doKho       DoKho           @default(VUA) @map("do_kho")
+  noiDung     String          @map("noi_dung") @db.Text // câu hỏi tiếng Anh
+  luaChon     Json?           @map("lua_chon")
+  dapAn       String          @map("dap_an")
+  goiYHinh    Json            @map("goi_y_hinh") // gợi ý cho lần sai 1
+  giaiThich   String          @map("giai_thich") @db.Text // giải thích cho lần sai 2
+  trangThai   TrangThaiCauHoi @default(ACTIVE) @map("trang_thai")
+  sinhLaiTuId String?         @unique @map("sinh_lai_tu_id") @db.Char(36)
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  bai       Bai      @relation(fields: [baiId], references: [id])
+  sinhLaiTu CauHoi?  @relation("SinhLai", fields: [sinhLaiTuId], references: [id])
+  thayBang  CauHoi?  @relation("SinhLai")
+  traLoi    TraLoi[]
+
+  @@map("cau_hoi")
+}
+
+// ---------- Học & chấm ----------
+
+model LichHoc {
+  id        String   @id @default(uuid()) @db.Char(36)
+  beId      String   @map("be_id") @db.Char(36)
+  baiId     String   @map("bai_id") @db.Char(36)
+  ngayHoc   DateTime @map("ngay_hoc") @db.Date
+  loai      LoaiLich
+  thuTu     Int      @map("thu_tu")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  be         HoSoBe       @relation(fields: [beId], references: [id])
+  bai        Bai          @relation(fields: [baiId], references: [id])
+  luotLamBai LuotLamBai[]
+
+  @@index([beId, ngayHoc])
+  @@map("lich_hoc")
+}
+
+model PhienHoc {
+  id         String    @id @default(uuid()) @db.Char(36)
+  beId       String    @map("be_id") @db.Char(36)
+  batDau     DateTime  @map("bat_dau")
+  ketThuc    DateTime? @map("ket_thuc")
+  soGiayHoc  Int       @default(0) @map("so_giay_hoc")
+  daNhacNghi Boolean   @default(false) @map("da_nhac_nghi")
+
+  be         HoSoBe       @relation(fields: [beId], references: [id])
+  luotLamBai LuotLamBai[]
+
+  @@map("phien_hoc")
+}
+
+model LuotLamBai {
+  id              String        @id @default(uuid()) @db.Char(36)
+  lichHocId       String        @map("lich_hoc_id") @db.Char(36)
+  phienHocId      String?       @map("phien_hoc_id") @db.Char(36)
+  cauHienTai      Int           @default(1) @map("cau_hien_tai") // BRL-005
+  doKhoHienTai    DoKho         @default(VUA) @map("do_kho_hien_tai") // BRL-014
+  demDungLienTiep Int           @default(0) @map("dem_dung_lien_tiep")
+  demSaiLienTiep  Int           @default(0) @map("dem_sai_lien_tiep")
+  trangThai       TrangThaiLuot @default(DANG_LAM) @map("trang_thai")
+  diemBai         Decimal?      @map("diem_bai") @db.Decimal(3, 1)
+  daThuoc         Boolean?      @map("da_thuoc")
+  hoanThanhLuc    DateTime?     @map("hoan_thanh_luc")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  lichHoc         LichHoc           @relation(fields: [lichHocId], references: [id])
+  phienHoc        PhienHoc?         @relation(fields: [phienHocId], references: [id])
+  traLoi          TraLoi[]
+  giaoDichSticker GiaoDichSticker[]
+
+  @@map("luot_lam_bai")
+}
+
+model TraLoi {
+  id           String        @id @default(uuid()) @db.Char(36)
+  luotLamBaiId String        @map("luot_lam_bai_id") @db.Char(36)
+  cauHoiId     String        @map("cau_hoi_id") @db.Char(36)
+  lan1         String?       @map("lan_1")
+  lan2         String?       @map("lan_2")
+  ketQua       KetQuaTraLoi? @map("ket_qua")
+  diemCau      Decimal?      @map("diem_cau") @db.Decimal(2, 1) // 1 / 0.5 / 0
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  luotLamBai LuotLamBai @relation(fields: [luotLamBaiId], references: [id])
+  cauHoi     CauHoi     @relation(fields: [cauHoiId], references: [id])
+
+  @@unique([luotLamBaiId, cauHoiId])
+  @@map("tra_loi")
+}
+
+// ---------- Sticker, đổi thưởng, mục tiêu tuần ----------
+
+model MucTieuTuan {
+  id         String    @id @default(uuid()) @db.Char(36)
+  beId       String    @map("be_id") @db.Char(36)
+  tuanTu     DateTime  @map("tuan_tu") @db.Date // Thứ Hai đầu tuần
+  mucTieu    Int       @map("muc_tieu")
+  soBuoiDat  Int       @default(0) @map("so_buoi_dat")
+  daDat      Boolean?  @map("da_dat")
+  chuoiTuan  Int       @default(0) @map("chuoi_tuan")
+  tongKetLuc DateTime? @map("tong_ket_luc")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  be              HoSoBe            @relation(fields: [beId], references: [id])
+  giaoDichSticker GiaoDichSticker[]
+
+  @@unique([beId, tuanTu])
+  @@map("muc_tieu_tuan")
+}
+
+model LanDoiThuong {
+  id         String   @id @default(uuid()) @db.Char(36)
+  beId       String   @map("be_id") @db.Char(36)
+  soSticker  Int      @map("so_sticker")
+  tyLe       Int      @map("ty_le")
+  soTien     Int      @map("so_tien")
+  // MVP 1 chưa có tài khoản phụ huynh (Q-15) nên để trống được; MVP 2 bắt buộc.
+  nguoiGhiId String?  @map("nguoi_ghi_id") @db.Char(36)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  be              HoSoBe            @relation(fields: [beId], references: [id])
+  nguoiGhi        TaiKhoanPhuHuynh? @relation(fields: [nguoiGhiId], references: [id])
+  giaoDichSticker GiaoDichSticker[]
+
+  @@map("lan_doi_thuong")
+}
+
+model GiaoDichSticker {
+  id             String      @id @default(uuid()) @db.Char(36)
+  beId           String      @map("be_id") @db.Char(36)
+  soLuong        Int         @map("so_luong") // dương = nhận, âm = đổi
+  lyDo           LyDoSticker @map("ly_do")
+  nhanVatId      String?     @map("nhan_vat_id") @db.Char(36)
+  luotLamBaiId   String?     @map("luot_lam_bai_id") @db.Char(36)
+  lanDoiThuongId String?     @map("lan_doi_thuong_id") @db.Char(36)
+  mucTieuTuanId  String?     @map("muc_tieu_tuan_id") @db.Char(36)
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  be           HoSoBe        @relation(fields: [beId], references: [id])
+  nhanVat      NhanVat?      @relation(fields: [nhanVatId], references: [id])
+  luotLamBai   LuotLamBai?   @relation(fields: [luotLamBaiId], references: [id])
+  lanDoiThuong LanDoiThuong? @relation(fields: [lanDoiThuongId], references: [id])
+  mucTieuTuan  MucTieuTuan?  @relation(fields: [mucTieuTuanId], references: [id])
+
+  @@index([beId, createdAt])
+  @@map("giao_dich_sticker")
 }

@@ -5,10 +5,16 @@ import { PrismaService } from '../prisma/prisma.service.js';
 export class HealthController {
   constructor(private readonly prisma: PrismaService) {}
 
-  // GET /health/db — kiểm tra API có kết nối được MySQL không
+  // GET /api/v1/health — API đang chạy
+  @Get()
+  ok() {
+    return { status: 'ok' };
+  }
+
+  // GET /api/v1/health/db — API kết nối được MySQL và đã có dữ liệu khởi tạo
   @Get('db')
   async db() {
-    const users = await this.prisma.user.count();
-    return { database: 'ok', users };
+    const giaDinh = await this.prisma.giaDinh.count();
+    return { database: 'ok', giaDinh };
   }
 }
